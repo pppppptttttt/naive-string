@@ -1,3 +1,9 @@
+/*
+ * Expectations: approximately same result if SSO_BUFFER_SIZE are equal,
+ * faster string operations if SSO_BUFFER_SIZE greater than from libstdc++
+ * for longer strings while they can fit to sso buffer.
+ */
+
 #include <benchmark/benchmark.h>
 #include <iostream>
 
@@ -20,25 +26,28 @@ struct Dummy {
     }
 } dummy;  // NOLINT
 
-template <std::size_t MAX_LENGTH = 10, std::size_t CONCAT_LENGTH = 3, std::size_t ITERATIONS = 1'000>
+template <
+    std::size_t MAX_LENGTH = 10,
+    std::size_t CONCAT_LENGTH = 3,
+    std::size_t ITERATIONS = 1'000'000>
 void ConcatStringsBM(benchmark::State &state) {
     for (auto _ : state) {
         const String s1(CONCAT_LENGTH, '.');
         String s2;
 
         for (std::size_t i = 0; i < ITERATIONS; ++i) {
-            s2 += s1;
             if (s2.length() > MAX_LENGTH) {
-                s2 = "";
+                s2.clear();
             }
+            benchmark::DoNotOptimize(s2 += s1);
         }
     }
 }
 
 }  // namespace
 
-BENCHMARK(ConcatStringsBM<10, 3, 1'000>);  // Short strings
-BENCHMARK(ConcatStringsBM<120, 3, 1'000>);  // Longer strings
-BENCHMARK(ConcatStringsBM<2'000'000, 10'000, 1'000>);  // Long strings
+BENCHMARK(ConcatStringsBM<>);                   // Short strings
+BENCHMARK(ConcatStringsBM<120, 20>);            // Longer strings
+BENCHMARK(ConcatStringsBM<2'000'000, 10'000>);  // Long strings
 
 BENCHMARK_MAIN();

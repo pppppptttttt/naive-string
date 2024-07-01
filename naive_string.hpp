@@ -2,6 +2,7 @@
 #define STRING_HPP_
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <memory>
 #include <ostream>
@@ -23,6 +24,14 @@ class BasicString {
         "Not supported platform/compiler configuration :c"
     );
 
+    // minimal sso storage, used when strings are small
+    static constexpr std::size_t SSO_ALIGNMENT = 16;
+
+    static_assert(
+        SSO_BUFFER_SIZE % SSO_ALIGNMENT == 0,
+        "SSO must be properly aligned!"
+    );
+
     static constexpr bool m_allocate_noexcept =
         noexcept(Allocator().allocate(1));
 
@@ -32,7 +41,7 @@ class BasicString {
 
 private:
     union {
-        char small_string[SSO_BUFFER_SIZE]{};
+        char small_string[SSO_BUFFER_SIZE] = {0};
         char *long_string;
     } m_data{};
 
@@ -48,11 +57,17 @@ private:
         if (size == 0) {
             return 0;
         }
-        std::size_t newcap = 1;
-        while (newcap < size) {
-            newcap *= 2;
+
+        if ((size & (size - 1)) == 0) {
+            return size;
         }
-        return newcap;
+
+        std::size_t power = 0;
+        while (size > 0) {
+            ++power;
+            size >>= 1;
+        }
+        return std::pow(2, power);
     }
 
 public:
@@ -65,12 +80,10 @@ public:
     BasicString(const char *str) noexcept(m_allocate_noexcept)
         : m_size(std::strlen(str)),
           m_capacity(std::max(SSO_BUFFER_SIZE, eval_capacity(m_size + 1))) {
-        if (is_small()) {
-            std::memcpy(m_data.small_string, str, m_size + 1);
-        } else {
+        if (!is_small()) {
             m_data.long_string = Allocator().allocate(m_capacity);
-            std::memcpy(m_data.long_string, str, m_size + 1);
         }
+        std::memcpy(data(), str, m_size + 1);
     }
 
     BasicString(std::size_t count, char ch) noexcept(m_allocate_noexcept)
@@ -80,9 +93,7 @@ public:
             m_data.long_string = Allocator().allocate(m_capacity);
         }
 
-        for (char *it = data(); it < data() + count; ++it) {  // NOLINT
-            *it = ch;
-        }
+        std::memset(data(), ch, count);
         data()[m_size] = 0;  // NOLINT
     }
 
@@ -90,14 +101,8 @@ public:
         : m_size(other.m_size), m_capacity(other.m_capacity) {
         if (!is_small()) {
             m_data.long_string = Allocator().allocate(m_capacity);
-            std::memcpy(
-                m_data.long_string, other.m_data.long_string, m_size + 1
-            );
-        } else {
-            std::memcpy(
-                m_data.small_string, other.m_data.small_string, m_size + 1
-            );
         }
+        std::memcpy(data(), other.data(), m_size + 1);
     }
 
     BasicString &operator=(const BasicString &other
@@ -127,7 +132,7 @@ public:
             if (m_data.long_string != nullptr) {
                 Allocator().deallocate(m_data.long_string, m_capacity);
             }
-            m_capacity = eval_capacity(m_size);
+            m_capacity = eval_capacity(m_size + 1);
             m_data.long_string = Allocator().allocate(m_capacity);
         }
         std::memcpy(m_data.long_string, other.data(), m_size + 1);
@@ -137,7 +142,7 @@ public:
     BasicString(BasicString &&other) noexcept
         : m_data(std::exchange(other.m_data, {})),
           m_size(std::exchange(other.m_size, 0)),
-          m_capacity(std::exchange(other.m_capacity, 0)) {
+          m_capacity(std::exchange(other.m_capacity, SSO_BUFFER_SIZE)) {
     }
 
     // NOLINTNEXTLINE
@@ -227,6 +232,11 @@ public:
         return m_size == 0;
     }
 
+    void clear() noexcept {
+        m_size = 0;
+        data()[0] = 0;
+    }
+
     /*
      * Operators
      */
@@ -243,11 +253,13 @@ public:
                 std::memcpy(new_data, m_data.small_string, m_size);
             } else {
                 std::memcpy(new_data, m_data.long_string, m_size);
+                if (m_data.long_string != nullptr) {
+                    Allocator().deallocate(
+                        m_data.long_string, capacity_snapshot
+                    );
+                }
             }
 
-            if (!was_small && m_data.long_string != nullptr) {
-                Allocator().deallocate(m_data.long_string, capacity_snapshot);
-            }
             std::swap(m_data.long_string, new_data);
         }
 

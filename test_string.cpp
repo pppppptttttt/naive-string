@@ -4,8 +4,6 @@
 #include <stdexcept>
 #include <utility>
 
-// #define TEST_STL_STRING
-
 #ifdef TEST_STL_STRING
 #include <string>
 using String = std::string;
@@ -25,7 +23,7 @@ struct Dummy {
     }
 } dummy;  // NOLINT
 
-}
+}  // namespace
 
 TEST(String, Constructors) {
     // default constructor
@@ -118,16 +116,3 @@ TEST(String, Operators) {
     const String s4 = "World!";
     EXPECT_EQ(s3 + ", " + s4, "Hello, World!");
 }
-
-
-#if 0
-TEST(String, LongStringBenchmark) {
-    const String s1(2e6, '.');
-    String s2;
-
-    constexpr std::size_t ITERATIONS = 1000;
-    for (std::size_t i = 0; i < ITERATIONS; ++i) {
-        s2 += s1;
-    }
-}
-#endif
