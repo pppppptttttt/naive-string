@@ -20,47 +20,11 @@ struct Dummy {
     }
 } dummy;  // NOLINT
 
-void ShortStringBM(benchmark::State &state) {
+template <std::size_t MAX_LENGTH = 10, std::size_t CONCAT_LENGTH = 3, std::size_t ITERATIONS = 1'000>
+void ConcatStringsBM(benchmark::State &state) {
     for (auto _ : state) {
-        const String s1(3, '.');
+        const String s1(CONCAT_LENGTH, '.');
         String s2;
-
-        constexpr std::size_t ITERATIONS = 1e3;
-        constexpr std::size_t MAX_LENGTH = 10;
-
-        for (std::size_t i = 0; i < ITERATIONS; ++i) {
-            s2 += s1;
-            if (s2.length() > MAX_LENGTH) {
-                s2 = "";
-            }
-        }
-    }
-}
-
-void LongerStringBM(benchmark::State &state) {
-    for (auto _ : state) {
-        const String s1(3, '.');
-        String s2;
-
-        constexpr std::size_t ITERATIONS = 1e3;
-        constexpr std::size_t MAX_LENGTH = 120;
-
-        for (std::size_t i = 0; i < ITERATIONS; ++i) {
-            s2 += s1;
-            if (s2.length() > MAX_LENGTH) {
-                s2 = "";
-            }
-        }
-    }
-}
-
-void LongStringBM(benchmark::State &state) {
-    for (auto _ : state) {
-        const String s1(10'000, '.');
-        String s2;
-
-        constexpr std::size_t ITERATIONS = 1e3;
-        constexpr std::size_t MAX_LENGTH = 2e6;
 
         for (std::size_t i = 0; i < ITERATIONS; ++i) {
             s2 += s1;
@@ -73,8 +37,8 @@ void LongStringBM(benchmark::State &state) {
 
 }  // namespace
 
-BENCHMARK(ShortStringBM);
-BENCHMARK(LongerStringBM);
-BENCHMARK(LongStringBM);
+BENCHMARK(ConcatStringsBM<10, 3, 1'000>);  // Short strings
+BENCHMARK(ConcatStringsBM<120, 3, 1'000>);  // Longer strings
+BENCHMARK(ConcatStringsBM<2'000'000, 10'000, 1'000>);  // Long strings
 
 BENCHMARK_MAIN();
