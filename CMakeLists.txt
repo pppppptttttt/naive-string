@@ -45,3 +45,18 @@ target_link_libraries(
 include(GoogleTest)
 gtest_discover_tests(test-string)
 gtest_discover_tests(test-stl-string)
+
+add_subdirectory(benchmark)
+
+add_executable(
+    benchmark-string
+    benchmark_string.cpp
+)
+target_link_libraries(benchmark-string benchmark::benchmark)
+
+add_executable(
+    benchmark-stl-string
+    benchmark_string.cpp
+)
+target_compile_definitions(benchmark-stl-string PRIVATE TEST_STL_STRING)
+target_link_libraries(benchmark-stl-string benchmark::benchmark)
